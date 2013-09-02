@@ -36,7 +36,8 @@ setup(
     license="",
     packages=find_packages(),
     include_package_data=True,
+    install_requires=open("requirements.txt").readlines(),
     zip_safe=False,
-    tests_require=['pytest'],
+    tests_require=['pytest', 'mock'],
     cmdclass={'test': PyTest},
 )
