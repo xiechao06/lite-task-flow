@@ -1,0 +1,16 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Submit Travel Application</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename="bootstrap/css/bootstrap.min.css") }}"/>
+    <script src="//code.jquery.com/jquery.js"></script>
+    <script type="text/javascript" src="{{ url_for("static", filename="bootstrap/js/bootstrap.min.js") }}"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  </head>
+  <body>
+    <div class="alert alert-success">
+      your {{ task_flow.annotation }} has been submitted! please wait for processing.
+    </div>
+  </body>
+</html>

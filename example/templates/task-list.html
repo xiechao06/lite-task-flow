@@ -1,0 +1,116 @@
+<!DOCTYPE HTML>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Submit Travel Application</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename="bootstrap/css/bootstrap.min.css") }}"/>
+    <script src="//code.jquery.com/jquery.js"></script>
+    <script type="text/javascript" src="{{ url_for("static", filename="bootstrap/js/bootstrap.min.js") }}"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style type="text/css">
+      #main-table tbody > tr > td {
+        vertical-align: middle;
+      }
+    </style>
+    <script type="text/javascript">
+    $(function() {
+        $('[data-role="permit-btn"]').click(function () {
+          if (confirm('Are you sure to permit this application?')) {
+          $.post('/process-task/'+$(this).attr('data-target')+'?action=permit').done(function () {
+             alert("Success!"); 
+             location.reload();
+            }); 
+          }
+          });
+        $('[data-role="refuse-btn"]').click(function () {
+          if (confirm('Are you sure to refuse this application?')) {
+          $.post('/process-task/'+$(this).attr('data-target')+'?action=refuse').done(function () {
+             alert("Success!");
+             location.reload();
+            }); 
+          }
+          });
+        });    
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      {% with messages = get_flashed_messages(with_categories=True) %}
+        {% if messages %}
+          <div class="flash">
+            {% for category, m in messages %}
+              {% if category == 'error' %}
+                <div class="alert alert-error">
+                  <a href="#" class="close" data-dismiss="alert">x</a>
+                  {{ m }}</div>
+              {% else %}
+                <div class="alert alert-success">
+                  <a href="#" class="close" data-dismiss="alert">x</a>
+                  {{ m }}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      Welcome, {{ current_user.username }}! <a href="{{ url_for('logout') }}">Logout</a>
+      {% if not current_user.is_clerk %}
+      <a href="{{ url_for('task') }}" class="btn btn-primary">New Application</a>
+      {% endif %}
+      <h1>Your applications: </h1>
+      <table class="table table-striped" id="main-table">
+        <thead>
+        	<tr>
+        		<th>Destination</th>
+            {% if current_user.is_clerk %}
+            <th>Initiator</th>
+            <th>Contact</th>
+            {% endif %}
+        		<th>Create Time</th>
+            <th>Approved Time</th>
+            <th>Status</th>
+            {% if current_user.is_clerk %}
+            <th></th>
+            {% endif %}
+
+        	</tr>
+        </thead>
+        <tbody>
+          {% for task in task_list %}
+          <tr class={% if task.task_flow.status == constants.TASK_FLOW_APPROVED %}'text-muted'{% elif task.task_flow.status == constants.TASK_FLOW_PROCESSING %}'text-success'{% else %}'text-danger'{% endif %}>
+            <td class='text-center'>{{ task.destination }}</td>
+            {% if current_user.is_clerk %}
+            <td>{{ task.username }}</td>
+            <td>{{ task.contact }}</td>
+            {% endif %}
+            <td>{{ task.create_time }}</td>
+            <td>{{ task.approved_time or "--" }}</td>
+            <td>
+              {% if task.task_flow.status == constants.TASK_FLOW_PROCESSING %}
+              Processing
+              {% elif task.task_flow.status == constants.TASK_FLOW_APPROVED %}
+              Approved
+              {% else %}
+              Refused
+              {% endif %}
+            </td>
+            {% if task.task_flow.status == constants.TASK_FLOW_PROCESSING and current_user.group.name == 'Clerks'%}
+            <td>
+              <div class="btn-group">
+                <button type="button" class="btn" data-role='permit-btn' data-target='{{ task.id_ }}'>Permit</button>
+                <button type="button" class="btn dropdown-toggle" data-toggle="dropdown">
+                  <span class="caret"></span>
+                </button>
+                <ul class="dropdown-menu" role="menu">
+                  <li><a href="#" data-role='refuse-btn' data-target='{{ task.id_ }}'>Refuse</a></li>
+                </ul>
+              </div> 
+            </td>
+            {% endif %}
+        	</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>

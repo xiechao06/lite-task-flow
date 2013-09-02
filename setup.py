@@ -4,8 +4,8 @@ from setuptools.command.test import test as TestCommand
 import sys
 import os.path
 
-PACKAGE = "task_flow"
-NAME = "task-flow"
+PACKAGE = "lite_task_flow"
+NAME = "lite-task-flow"
 DESCRIPTION = "a light weight task flow framework"
 AUTHOR = "xiechao"
 AUTHOR_EMAIL = "xiechao06@gmail.com"
