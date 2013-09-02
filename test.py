@@ -14,6 +14,7 @@ from lite_task_flow import (TaskFlowEngine, Task,  new_task_flow,
 from lite_task_flow.exceptions import (TaskFlowDelayed, ApproveRefusedTaskFlow, 
                                 TaskAlreadyApproved, TaskUnsubmitted)
 
+from lite_task_flow.indexes import add_index
 
 
 class BaseTest(object):
@@ -21,6 +22,7 @@ class BaseTest(object):
     def setup(self):
         self.db = Database(tempfile.mkdtemp()) 
         self.db.create()
+        add_index(self.db)
         self.task_flow_engine = TaskFlowEngine(self.db) 
 
     def teardown(self):
