@@ -4,7 +4,6 @@ from hashlib import md5
 
 
 from flask import Flask, render_template, request, redirect, url_for, current_app, flash
-from flask.ext import principal
 from flask.ext.login import current_user, login_required, LoginManager, login_user, logout_user
 from flask.ext.wtf import Form
 from wtforms import TextField
