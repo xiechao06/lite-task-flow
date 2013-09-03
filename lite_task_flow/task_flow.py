@@ -2,23 +2,24 @@
 from CodernityDB.database import RecordNotFound
 from lite_task_flow.task_flow_engine import TaskFlowEngine
 from lite_task_flow import constants
-from lite_task_flow.exceptions import ApproveRefusedTaskFlow, TaskFlowDelayed
+from lite_task_flow.exceptions import TaskFlowRefused, TaskFlowDelayed, TaskFlowProcessing
 
 class TaskFlow(object):
 
-    def __init__(self, id_, annotation, status=constants.TASK_FLOW_PROCESSING):
+    def __init__(self, id_, annotation, status=constants.TASK_FLOW_PROCESSING, failed=False):
         """
         :param id_: id of the task flow
         :type id_: StringType
         :param annotation: annotaion to the task flow
         :type annotaion: StringType
         :param status: status of the task flow
+        :param failed: if the task flow's execution failed
         """
         self.id_ = id_
         self.annotation = annotation
         self.status = status
+        self.failed = failed
         self.root_task = None
-
 
     def set_root_task(self, root_task):
         """
@@ -31,11 +32,11 @@ class TaskFlow(object):
         test if all the tasks are approved, if they are, execute the tasks from
         LEAF to ROOT
 
-        :raise: ApproveRefusedTaskFlow when the task flow has been refused
+        :raise: TaskFlowRefused when the task flow has been refused
         :raise: TaskFlowDelayed when there exists task that hasn't been approved
         """
         if self.status == constants.TASK_FLOW_REFUSED:
-            raise ApproveRefusedTaskFlow()
+            raise TaskFlowRefused()
         # then we test if all the (indirect) depenecies of ROOT are met
         unmet_task = self._find_next_unmet_task(self.root_task)
         if unmet_task:
@@ -43,10 +44,43 @@ class TaskFlow(object):
             last_operated_task.on_delayed(unmet_task)
             raise TaskFlowDelayed(unmet_task, "task %s is not met" % unicode(unmet_task))
 
-        # execute all the tasks
-        self.root_task.execute()
         self.status = constants.TASK_FLOW_APPROVED
         self.update()
+
+        # execute all the tasks
+        try:
+            self.root_task.execute()
+            self.failed = False
+            self.status = constants.TASK_FLOW_EXECUTED
+            self.update()
+        except:
+            self.failed = True
+            self.update()
+            raise
+
+
+    def execute(self):
+        """
+        execute the task flow
+        you must guarantee each task is a transaction
+
+        :raise TaskFlowRefused: if task flow is refused
+        :raise TaskFlowProcessing: if task flow is processing
+        :raise Exception: any exceptions raised when executing tasks
+        """
+        if self.status == constants.TASK_FLOW_REFUSED:
+            raise TaskFlowRefused()
+        elif self.status == constants.TASK_FLOW_PROCESSING:
+            raise TaskFlowProcessing()
+        try:
+            self.root_task.execute()
+            self.failed = False
+            self.status == constants.TASK_FLOW_EXECUTED
+            self.update()
+        except:
+            self.failed = True
+            self.update()
+            raise
 
     def approve(self, task):
         """
@@ -61,6 +95,7 @@ class TaskFlow(object):
         """
         doc = TaskFlowEngine.instance.db.get('id', self.id_, with_doc=True)
         doc['status'] = self.status
+        doc['failed'] = self.failed
         TaskFlowEngine.instance.db.update(doc)
 
     def _find_next_unmet_task(self, task):

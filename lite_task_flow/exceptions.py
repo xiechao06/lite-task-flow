@@ -6,7 +6,10 @@ class TaskFlowDelayed(Exception):
         super(TaskFlowDelayed, self).__init__(message)
         self.task = task
 
-class ApproveRefusedTaskFlow(Exception):
+class TaskFlowRefused(Exception):
+    pass
+
+class TaskFlowProcessing(Exception):
     pass
 
 class TaskAlreadyApproved(Exception):

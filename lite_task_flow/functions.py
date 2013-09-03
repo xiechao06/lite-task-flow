@@ -10,7 +10,7 @@ def new_task_flow(task_cls, annotation="", **kwargs):
     """
 
     d = dict(t=constants.TASK_FLOW_TYPE_CODE, status=constants.TASK_FLOW_PROCESSING, annotation=annotation,
-             root_task_cls=task_cls.__name__, root_extra_params=kwargs)
+             root_task_cls=task_cls.__name__, root_extra_params=kwargs, failed=False)
     id_ = TaskFlowEngine.instance.db.insert(d)['_id']
     task_flow = TaskFlow(id_, annotation)
     task_flow.set_root_task(task_cls(task_flow, **kwargs))
@@ -27,7 +27,7 @@ def get_task_flow(task_flow_id):
         doc = TaskFlowEngine.instance.db.get('id', task_flow_id)
     except RecordNotFound:
         return None
-    ret = TaskFlow(task_flow_id, doc['annotation'], doc['status'])
+    ret = TaskFlow(task_flow_id, doc['annotation'], doc['status'], doc['failed'])
     ret.set_root_task(TaskFlowEngine.instance.registered_task_cls_map[doc['root_task_cls']](ret, **doc['root_extra_params']))
     ret.root_task.checkout()
     return ret

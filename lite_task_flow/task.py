@@ -3,10 +3,8 @@ from datetime import datetime
 
 from lite_task_flow.task_flow_engine import TaskFlowEngine
 from lite_task_flow.exceptions import TaskUnsubmitted, TaskAlreadyApproved
-from lite_task_flow.constants import TASK_TYPE_CODE
+from lite_task_flow.constants import TASK_TYPE_CODE, TASK_FLOW_EXECUTED
 from CodernityDB.database import RecordNotFound
-
-
 
 class Task(object):
     """
@@ -20,6 +18,7 @@ class Task(object):
         self.task_flow = task_flow
         self.extra_params = kwargs
         self.approved = False
+        self.failed = False
 
     @property
     def tag(self):
@@ -38,20 +37,21 @@ class Task(object):
                                                        'tag': self.tag},
                                               with_doc=True)['doc']
             self.approved = task_doc['approved']
+            self.failed = task_doc['failed']
+            self.extra_params = task_doc['extra_params']
         except RecordNotFound:
             pass
         return self
 
 
-    def commit(self):
+    def update(self, attr):
         '''
         the opposite operation of checkout
         '''
         task_doc = TaskFlowEngine.instance.db.get('task', {'task_flow_id': self.task_flow.id_,
                                                    'tag': self.tag},
                                           with_doc=True)['doc']
-        for k, v in self.extra_params:
-            task_doc[k] = v
+        task_doc[attr] = getattr(self, attr)
         TaskFlowEngine.instance.db.update(task_doc)
 
     def __call__(self):
@@ -80,8 +80,16 @@ class Task(object):
         """
         for task in self.dependencies:
             task.execute()
-        self()
-        self.after_executed()
+        if not self.task_flow.status == TASK_FLOW_EXECUTED or self.failed:
+            try:
+                self()
+                self.failed = False
+                self.update('failed')
+                self.after_executed()
+            except:
+                self.failed = True
+                self.update('failed')
+                raise
 
     def approve(self):
         """
@@ -118,11 +126,12 @@ class Task(object):
         save the task on disk
         """
         d = dict(t=TASK_TYPE_CODE,
-                task_flow_id=self.task_flow.id_,
-                tag=self.tag,
-                approved=self.approved,
-                extra_params=self.extra_params,
-                create_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                 task_flow_id=self.task_flow.id_,
+                 tag=self.tag,
+                 approved=self.approved,
+                 failed=self.failed,
+                 extra_params=self.extra_params,
+                 create_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         return TaskFlowEngine.instance.db.insert(d)
 
     def on_delayed(self, unmet_task):

@@ -11,7 +11,7 @@ from CodernityDB.database import Database
 from lite_task_flow import (TaskFlowEngine, Task,  new_task_flow, 
                                 constants, register_task_cls, get_task_flow)
 
-from lite_task_flow.exceptions import (TaskFlowDelayed, ApproveRefusedTaskFlow, 
+from lite_task_flow.exceptions import (TaskFlowDelayed, TaskFlowRefused, 
                                 TaskAlreadyApproved, TaskUnsubmitted)
 
 from lite_task_flow.indexes import add_index
@@ -63,7 +63,9 @@ class TestSingleTask(BaseTest):
                     mock_method3.assert_called_once_with()
                     foo_task = task_flow.root_task.checkout()
                     assert foo_task.approved
-                    assert task_flow.status == constants.TASK_FLOW_APPROVED
+                    assert task_flow.status == constants.TASK_FLOW_EXECUTED
+                    assert not foo_task.failed
+                    assert not task_flow.failed
 
         with patch.object(FooTask, "__call__") as mock_method1:
             with patch.object(FooTask, "on_approved") as mock_method2:
@@ -76,6 +78,8 @@ class TestSingleTask(BaseTest):
                         assert mock_method2.call_count == 0
                         assert mock_method3.call_count == 0
                         mock_method4.assert_called_once_with(True)
+                        assert not task_flow.failed
+                        assert not foo_task.failed
 
         task_flow = new_task_flow(FooTask, annotation='foo task flow')
         task_flow.start()
@@ -154,6 +158,9 @@ class TestMultipleTasks(BaseTest):
                         call_c.assert_called_once_with()
                         call_d.assert_called_once_with()
 
+                        assert not delayed_task.failed
+                        assert not task_flow.failed
+
         ## test refused
         with patch.object(B, "on_refused") as mock_method:
             task_flow = new_task_flow(A, annotation="foo task flow", name='a')
@@ -166,7 +173,7 @@ class TestMultipleTasks(BaseTest):
             task_flow = get_task_flow(task_flow.id_)
             assert task_flow.status == constants.TASK_FLOW_REFUSED
             mock_method.assert_called_once_with(True)
-            raises(ApproveRefusedTaskFlow, task_flow.approve, delayed_task)
+            raises(TaskFlowRefused, task_flow.approve, delayed_task)
 
         # test unsubmitted task
         task_flow = new_task_flow(A, annotation='foo task flow', name='a')
@@ -180,6 +187,73 @@ class TestMultipleTasks(BaseTest):
             pass
         raises(TaskAlreadyApproved, task_flow.approve, A(task_flow, name="a"))
 
+class TestExecution(BaseTest):
+
+    def test(self):
+        class A(Task):
+
+            @property
+            def tag(self):
+                return 'A'
+
+            def __call__(self):
+                raise RuntimeError()
+
+            @property
+            def dependencies(self):
+                return [B(self.task_flow)]
+
+        class B(Task):
+
+            @property
+            def tag(self):
+                return 'B'
+
+        task_flow = new_task_flow(A)
+        try:
+            task_flow.start()
+        except TaskFlowDelayed:
+            pass
+        raises(RuntimeError, task_flow.approve, B(task_flow))
+
+        assert task_flow.failed
+        b_task = B(task_flow).checkout()
+        assert not b_task.failed
+        a_task = A(task_flow).checkout()
+        assert a_task.failed
+        assert task_flow.status == constants.TASK_FLOW_APPROVED
+
+        raises(RuntimeError, task_flow.execute)
+        assert task_flow.status == constants.TASK_FLOW_APPROVED
+
+        assert task_flow.failed
+        b_task = B(task_flow).checkout()
+        assert not b_task.failed
+        a_task = A(task_flow).checkout()
+        assert a_task.failed
+        
+        class A_(Task):
+
+            @property
+            def tag(self):
+                return 'A'
+
+            @property
+            def dependencies(self):
+                return [B(self.task_flow)]
+
+        task_flow = new_task_flow(A_)
+        try:
+            task_flow.start()
+        except TaskFlowDelayed:
+            pass
+        
+        task_flow.approve(B(task_flow))
+        assert task_flow.status == constants.TASK_FLOW_EXECUTED
+
+
 if __name__ == "__main__":
     TestSingleTask().run_plainly()
     TestMultipleTasks().run_plainly()
+    TestExecution().run_plainly()
+
