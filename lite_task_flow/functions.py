@@ -1,6 +1,7 @@
 # -*- coding: UTF-8 -*-
 from lite_task_flow.task_flow_engine import TaskFlowEngine
 from lite_task_flow.task_flow import TaskFlow
+from lite_task_flow.task import Task
 from CodernityDB.database import RecordNotFound
 from lite_task_flow import constants
 
@@ -38,11 +39,16 @@ def register_task_cls(task_cls):
     """
     TaskFlowEngine.instance.registered_task_cls_map[task_cls.__name__] = task_cls
 
-def get_task(task_id, task_cls=None):
+def get_task(task_id):
     try:
         doc = TaskFlowEngine.instance.db.get('id', task_id)
     except RecordNotFound:
         return None
     task_flow = get_task_flow(doc['task_flow_id'])
-    task_cls = task_cls or Task
-    return task_cls(task_flow, **doc['extra_params'])
+    task_cls = TaskFlowEngine.instance.registered_task_cls_map[doc['cls']]
+    ret = task_cls(task_flow, **doc['extra_params'])
+    ret.approved = doc['approved']
+    ret.failed = doc['failed']
+    ret.create_time = doc['create_time']
+    ret.approved_time = doc.get('approved_time')
+    return ret

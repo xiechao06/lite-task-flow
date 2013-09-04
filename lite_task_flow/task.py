@@ -19,6 +19,8 @@ class Task(object):
         self.extra_params = kwargs
         self.approved = False
         self.failed = False
+        self.approved_time = None
+        self.create_time = None
 
     @property
     def tag(self):
@@ -105,10 +107,11 @@ class Task(object):
         if doc['approved']:
             raise TaskAlreadyApproved()
 
-        doc['approved'] = True
-        doc['approved_time'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        TaskFlowEngine.instance.db.update(doc)
         self.approved = True
+        self.approved_time = datetime.now()
+        doc['approved'] = True
+        doc['approved_time'] = self.approved_time.strftime("%Y-%m-%d %H:%M:%S")
+        TaskFlowEngine.instance.db.update(doc)
         self.on_approved()
  
     def on_refused(self, caused_by_me):
@@ -125,13 +128,15 @@ class Task(object):
         """
         save the task on disk
         """
+        self.create_time = datetime.now()
         d = dict(t=TASK_TYPE_CODE,
                  task_flow_id=self.task_flow.id_,
                  tag=self.tag,
                  approved=self.approved,
                  failed=self.failed,
                  extra_params=self.extra_params,
-                 create_time=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                 create_time=self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
+                 cls=self.__class__.__name__)
         return TaskFlowEngine.instance.db.insert(d)
 
     def on_delayed(self, unmet_task):
