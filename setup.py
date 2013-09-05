@@ -10,8 +10,8 @@ DESCRIPTION = "a light weight task flow framework"
 AUTHOR = "xiechao"
 AUTHOR_EMAIL = "xiechao06@gmail.com"
 URL = ""
-VERSION = __import__(PACKAGE).__version__
-DOC = __import__(PACKAGE).__doc__
+VERSION = "0.9.0"
+DOC = ""
 
 
 class PyTest(TestCommand):
