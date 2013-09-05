@@ -44,6 +44,9 @@ def get_task(task_id):
         doc = TaskFlowEngine.instance.db.get('id', task_id)
     except RecordNotFound:
         return None
+    return get_task_from_doc(doc)
+
+def get_task_from_doc(doc):
     task_flow = get_task_flow(doc['task_flow_id'])
     task_cls = TaskFlowEngine.instance.registered_task_cls_map[doc['cls']]
     ret = task_cls(task_flow, **doc['extra_params'])
@@ -51,4 +54,5 @@ def get_task(task_id):
     ret.failed = doc['failed']
     ret.create_time = doc['create_time']
     ret.approved_time = doc.get('approved_time')
+    ret.id_ = doc['_id']
     return ret
