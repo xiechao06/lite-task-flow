@@ -38,6 +38,7 @@ class Task(object):
             task_doc = TaskFlowEngine.instance.db.get('task', {'task_flow_id': self.task_flow.id_,
                                                        'tag': self.tag},
                                               with_doc=True)['doc']
+            self.id_ = task_doc['_id']
             self.approved = task_doc['approved']
             self.failed = task_doc['failed']
             self.extra_params = task_doc['extra_params']
@@ -45,6 +46,15 @@ class Task(object):
             pass
         return self
 
+    def init_from_doc(self, doc):
+        """
+        initialize from document
+        """
+        self.approved = doc['approved']
+        self.failed = doc['failed']
+        self.create_time = doc['create_time']
+        self.approved_time = doc.get('approved_time')
+        self.id_ = doc['_id']
 
     def update(self, attr):
         '''
@@ -137,7 +147,9 @@ class Task(object):
                  extra_params=self.extra_params,
                  create_time=self.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                  cls=self.__class__.__name__)
-        return TaskFlowEngine.instance.db.insert(d)
+        ret = TaskFlowEngine.instance.db.insert(d)
+        self.id_ = ret['_id']
+        return ret
 
     def on_delayed(self, unmet_task):
         """

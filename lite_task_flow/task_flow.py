@@ -112,7 +112,7 @@ class TaskFlow(object):
             try:
                 dep_task_data = TaskFlowEngine.instance.db.get('task', dict(task_flow_id=dep_task.task_flow.id_,
                                                                     tag=dep_task.tag), with_doc=True)
-                dep_task.approved = dep_task_data['doc']['approved']
+                dep_task.init_from_doc(dep_task_data['doc'])
             except RecordNotFound:
                 pass
             unmet_task = self._find_next_unmet_task(dep_task)
